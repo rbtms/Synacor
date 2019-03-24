@@ -47,7 +47,7 @@ get_val s n
 
 -- | Set register r to val
 set_reg :: State -> Int -> Int -> State
-set_reg s r val = s { _reg = V.update (_reg s) $ V.singleton (i, val) }
+set_reg s r val = s { _reg = V.update (_reg s) $ V.fromList [(i, val)] }
   where i = from_reg r
 
 ---- | Stack
@@ -60,8 +60,9 @@ push_stack s n = s { _stack = n : _stack s }
 pop_stack :: State -> Int -> State
 pop_stack s r
   | null stack = throw_err ERR_EMPTY_STACK
-  | otherwise  = ( set_reg s r (head stack) ) { _stack = tail stack }
-  where stack = _stack s
+  | otherwise  = ( set_reg s r val ) { _stack = s' }
+  where stack    = _stack s
+        (val:s') = stack
 
 ---- | Pointer
 
@@ -82,14 +83,14 @@ set_ptr n s = s { _ptr = n }
 -- | Get mem!!i
 get_mem :: State -> Int -> Int
 get_mem s i
-  | i < 0 || i > V.length (_mem s) = throw_err_arg ERR_MEM_INDEX_OOB i
+  | i < 0 || i >= V.length (_mem s) = throw_err_arg ERR_MEM_INDEX_OOB i
   | otherwise = _mem s V.! i
 
 -- | Set mem s!!i to val
 set_mem :: State -> Int -> Int -> State
 set_mem s i val
-  | i < 0 || i > V.length (_mem s) = throw_err_arg ERR_MEM_INDEX_OOB i
-  | otherwise = s { _mem = V.update (_mem s) $ V.singleton (i, val) }
+  | i < 0 || i >= V.length (_mem s) = throw_err_arg ERR_MEM_INDEX_OOB i
+  | otherwise = s { _mem = V.update (_mem s) $ V.fromList [(i, val)] }
 
 ---- | I/O
 
@@ -280,18 +281,11 @@ exec s
         b'  = get_val s b
         c'  = get_val s c
 
-{-
-get_args :: IO [([Char], [Char])]
-get_args = do
-  args <- getArgs
-  let defaults = [("bin_path", )]
-  let args' = map (\cs -> SplitOn) args
--}
 
 main :: IO ()
 main = do
   args <- getArgs
-  input <- H.load_bin $ if null args then "../bin/challenge.bin" else args!!0
+  input <- H.load_bin $ if null args then "../bin/challenge.bin" else head args
   let mem = H.b8_to_b16 input
   let s   = State {
       _mem       = V.fromList mem
@@ -306,3 +300,4 @@ main = do
   }
 
   exec s
+
